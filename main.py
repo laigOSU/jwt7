@@ -8,11 +8,17 @@ from google.auth import jwt
 from google.auth.transport import requests
 import jwt
 
+import constants
+import boat
+import slip
+
 # This disables the requirement to use HTTPS so that you can test locally.
 import os
 os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
 
 app = Flask(__name__)
+app.register_blueprint(slip.bp)
+app.register_blueprint(boat.bp)
 client = datastore.Client()
 
 # These should be copied from an OAuth2 Credential section at
