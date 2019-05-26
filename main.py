@@ -23,19 +23,19 @@ client = datastore.Client()
 
 # These should be copied from an OAuth2 Credential section at
 # https://console.cloud.google.com/apis/credentials
-client_id = r'371537407612-8tjsld73srjlpagoemihudhcjhbk25b0.apps.googleusercontent.com'
-client_secret = r'xUfAYR1s1KwVQL5-c-NYw7mE'
+# client_id = r'371537407612-8tjsld73srjlpagoemihudhcjhbk25b0.apps.googleusercontent.com'
+# client_secret = r'xUfAYR1s1KwVQL5-c-NYw7mE'
 
 # This is the page that you will use to decode and collect the info from
 # the Google authentication flow
-# redirect_uri = 'http://127.0.0.1:8080/oauth'
-redirect_uri = 'https://laig493jwt.appspot.com/oauth'
+redirect_uri = 'http://127.0.0.1:8080/oauth'
+# redirect_uri = 'https://laig493jwt.appspot.com/oauth'
 
 # These let us get basic info to identify a user and not much else
 # they are part of the Google People API
 scope = ['https://www.googleapis.com/auth/userinfo.email',
              'https://www.googleapis.com/auth/userinfo.profile']
-oauth = OAuth2Session(client_id, redirect_uri=redirect_uri,
+oauth = OAuth2Session(constants.client_id, redirect_uri=redirect_uri,
                           scope=scope)
 
 # This link will redirect users to begin the OAuth flow with Google
@@ -46,7 +46,7 @@ def index():
         # access_type and prompt are Google specific extra
         # parameters.
         access_type="offline", prompt="select_account")
-    return 'Please go <a href=%s>here</a> and authorize access.' % authorization_url
+    return 'Please go to <a href=%s>here</a> and authorize access.' % authorization_url
 
 # This is where users will be redirected back to and where you can collect
 # the JWT for use in future requests
@@ -55,11 +55,11 @@ def oauthroute():
     token = oauth.fetch_token(
         'https://accounts.google.com/o/oauth2/token',
         authorization_response=request.url,
-        client_secret=client_secret)
+        client_secret=constants.client_secret)
     req = requests.Request()
 
     id_info = id_token.verify_oauth2_token(
-    token['id_token'], req, client_id)
+    token['id_token'], req, constants.client_id)
 
     return "Your JWT is: %s" % token['id_token']
 
@@ -73,7 +73,7 @@ def verify():
     req = requests.Request()
 
     id_info = id_token.verify_oauth2_token(
-    request.args['jwt'], req, client_id)
+    request.args['jwt'], req, constants.client_id)
 
     return repr(id_info) + "<br><br> the user is: " + id_info['email']
 

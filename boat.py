@@ -1,21 +1,52 @@
 from flask import Blueprint, request
+from flask import request
 from google.cloud import datastore
 import json
 import constants
+
+from requests_oauthlib import OAuth2Session
+from google.oauth2 import id_token
+from google.auth import crypt
+from google.auth import jwt
+from google.auth.transport import requests
+import jwt
 
 client = datastore.Client()
 
 bp = Blueprint('boat', __name__, url_prefix='/boats')
 
+@bp.route('/boatverify', methods=['POST','GET'])
+def boats_verify():
+    #---- POST: CREATE A NEW BOAT ----#
+    if request.method == 'POST':
+        req = requests.Request()
+
+        id_info = id_token.verify_oauth2_token(
+        request.args['jwt'], req, constants.client_id)
+        print("req is: ", req)
+        print("id_info[email] is: ", id_info['email'])
+
+        return repr(id_info) + "<br><br> the user is: " + id_info['email']
+
 @bp.route('', methods=['POST','GET'])
 def boats_get_post():
     #---- POST: CREATE A NEW BOAT ----#
     if request.method == 'POST':
-        content = request.get_json()
-        new_boat = datastore.entity.Entity(key=client.key(constants.boats))
-        new_boat.update({"name": content["name"], 'type': content['type'], 'length': content['length']})
-        client.put(new_boat)
-        return (str(new_boat.key.id), 201)
+        req = requests.Request()
+
+        id_info = id_token.verify_oauth2_token(
+        request.args['jwt'], req, client_id)
+        print("req is: ", req)
+        print("id_info[email] is: ", id_info['email'])
+
+        return repr(id_info) + "<br><br> the user is: " + id_info['email']
+
+
+        # content = request.get_json()
+        # new_boat = datastore.entity.Entity(key=client.key(constants.boats))
+        # new_boat.update({"name": content["name"], 'type': content['type'], 'length': content['length']})
+        # client.put(new_boat)
+        # return (str(new_boat.key.id), 201)
 
     #---- GET: VIEW ALL BOATS ----#
     elif request.method == 'GET':
