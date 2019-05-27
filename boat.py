@@ -76,29 +76,45 @@ def boats_put_delete_get(id):
 
     #---- DELETE: REMOVE A SPECIFIC BOAT ----#
     elif request.method == 'DELETE':
+        # Check the user
+
         # Get the boat
-        key = client.key(constants.boats, int(id))
+        boat_key = client.key(constants.boats, int(id))
+        boat = client.get(key=boat_key)
 
-        # Check if boat is docked in a slip --> if boat_id == slip["current_boat"]
-        # Get that slip
-        query = client.query(kind=constants.slips)
-        query.add_filter('current_boat', '=', id)
-        queryresults = list(query.fetch())
-        print("queryresults is: ", queryresults)
-        for e in queryresults:
-            print("number is: ", e["number"])
-            print("current_boat is: ", e["current_boat"])
-            print("slip id is: ", e.key.id)
-            slip_id = e.key.id
+        # Get the boat's owner
+        boat_owner = boat['owner']
+        print("boat_owner is: ", boat_owner)
 
-            slip_key = client.key(constants.slips, slip_id)
-            slip = client.get(key=slip_key)
-            slip["current_boat"] = "null"
-            slip["arrival_date"] = "null"
-            client.put(slip)
-        client.delete(key)
+        # Confirm user is authorized to delete
+        req = requests.Request()
 
-        return ('',200)
+        id_info = id_token.verify_oauth2_token(
+        request.args['jwt'], req, constants.client_id)
+        if(id_info['email'] == boat_owner):
+
+            # Check if boat is docked in a slip --> if boat_id == slip["current_boat"]
+            # Get that slip
+            query = client.query(kind=constants.slips)
+            query.add_filter('current_boat', '=', id)
+            queryresults = list(query.fetch())
+            print("queryresults is: ", queryresults)
+            for e in queryresults:
+                print("number is: ", e["number"])
+                print("current_boat is: ", e["current_boat"])
+                print("slip id is: ", e.key.id)
+                slip_id = e.key.id
+
+                slip_key = client.key(constants.slips, slip_id)
+                slip = client.get(key=slip_key)
+                slip["current_boat"] = "null"
+                slip["arrival_date"] = "null"
+                client.put(slip)
+            # client.delete(boat_key)
+
+            return ('Okay deleting',200)
+        else:
+            return('Not authorized to delete boat owned by another', 403)
 
     #---- GET: VIEW A SPECIFIC BOAT ----#
     elif request.method == 'GET':
