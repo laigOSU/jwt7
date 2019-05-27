@@ -54,6 +54,12 @@ def get_users_boats(uid):
         # Compare JWT email vs DB email matches
         if (db_email == jwt_email):
             print("Emails match, correct user")
-            return("emails match, user is correct", 200)
+            query = client.query(kind=constants.boats)
+            query.add_filter('owner', '=', jwt_email)
+            queryresults = list(query.fetch())
+            print ("queryresults are: ", queryresults)
+            print("jsondumped query results are: ", json.dumps(queryresults))
+
+            return(json.dumps(queryresults))
         else:
             return("Not authorized to view boats of another user", 403)
