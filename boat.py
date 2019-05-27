@@ -16,17 +16,16 @@ client = datastore.Client()
 bp = Blueprint('boat', __name__, url_prefix='/boats')
 
 @bp.route('/boatverify', methods=['POST','GET'])
-def boats_verify():
+def boats_verify(auth_token):
     #---- POST: CREATE A NEW BOAT ----#
     if request.method == 'POST':
-        req = requests.Request()
-
-        id_info = id_token.verify_oauth2_token(
-        request.args['jwt'], req, constants.client_id)
-        print("req is: ", req)
-        print("id_info[email] is: ", id_info['email'])
-
-        return repr(id_info) + "<br><br> the user is: " + id_info['email']
+        try:
+            payload = jwt.decode(auth_token, app.config.get('SECRET_KEY'))
+            return payload['sub']
+        except jwt.ExpiredSignatureError:
+            return 'Signature expired. Please log in again.'
+        except jwt.InvalidTokenError:
+            return 'Invalid token. Please log in again.'
 
 @bp.route('', methods=['POST','GET'])
 def boats_get_post():
@@ -35,18 +34,20 @@ def boats_get_post():
         req = requests.Request()
 
         id_info = id_token.verify_oauth2_token(
-        request.args['jwt'], req, client_id)
+        request.args['jwt'], req, constants.client_id)
         print("req is: ", req)
         print("id_info[email] is: ", id_info['email'])
+        # payload = jwt.decode(encoded, client_secret, algorithms='HS256')
+        # print("jwt is: ", payload)
 
-        return repr(id_info) + "<br><br> the user is: " + id_info['email']
+        content = request.get_json()
+        new_boat = datastore.entity.Entity(key=client.key(constants.boats))
+        new_boat.update({"name": content["name"], 'type': content['type'], 'length': content['length'], 'owner': id_info['email']})
+        client.put(new_boat)
+        return (str(new_boat.key.id), 201)
+        # return repr(id_info) + "<br><br> the user is: " + id_info['email']
 
 
-        # content = request.get_json()
-        # new_boat = datastore.entity.Entity(key=client.key(constants.boats))
-        # new_boat.update({"name": content["name"], 'type': content['type'], 'length': content['length']})
-        # client.put(new_boat)
-        # return (str(new_boat.key.id), 201)
 
     #---- GET: VIEW ALL BOATS ----#
     elif request.method == 'GET':
