@@ -31,21 +31,25 @@ def boats_verify(auth_token):
 def boats_get_post():
     #---- POST: CREATE A NEW BOAT ----#
     if request.method == 'POST':
-        req = requests.Request()
-
-        id_info = id_token.verify_oauth2_token(
-        request.args['jwt'], req, constants.client_id)
-        print("req is: ", req)
-        print("id_info[email] is: ", id_info['email'])
-        # payload = jwt.decode(encoded, client_secret, algorithms='HS256')
-        # print("jwt is: ", payload)
-
-        content = request.get_json()
-        new_boat = datastore.entity.Entity(key=client.key(constants.boats))
-        new_boat.update({"name": content["name"], 'type': content['type'], 'length': content['length'], 'owner': id_info['email']})
-        client.put(new_boat)
-        return (str(new_boat.key.id), 201)
-        # return repr(id_info) + "<br><br> the user is: " + id_info['email']
+        jwt_param = request.args.get("jwt")
+        if jwt_param is None:
+            print("no params")
+            return("Missing/Invalid JWT", 401)
+        else:
+            print("yes params")
+            req = requests.Request()
+            id_info = id_token.verify_oauth2_token(
+            request.args['jwt'], req, constants.client_id)
+            print("req is: ", req)
+            print("id_info[email] is: ", id_info['email'])
+            # payload = jwt.decode(encoded, client_secret, algorithms='HS256')
+            # print("jwt is: ", payload)
+            content = request.get_json()
+            new_boat = datastore.entity.Entity(key=client.key(constants.boats))
+            new_boat.update({"name": content["name"], 'type': content['type'], 'length': content['length'], 'owner': id_info['email']})
+            client.put(new_boat)
+            return (str(new_boat.key.id), 201)
+            # return repr(id_info) + "<br><br> the user is: " + id_info['email']
 
 
 
