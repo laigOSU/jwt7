@@ -11,6 +11,7 @@ import jwt
 import constants
 import boat
 import slip
+import user
 
 # This disables the requirement to use HTTPS so that you can test locally.
 import os
@@ -19,6 +20,7 @@ os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
 app = Flask(__name__)
 app.register_blueprint(slip.bp)
 app.register_blueprint(boat.bp)
+app.register_blueprint(user.bp)
 client = datastore.Client()
 
 # These should be copied from an OAuth2 Credential section at
@@ -46,7 +48,7 @@ def index():
         # access_type and prompt are Google specific extra
         # parameters.
         access_type="offline", prompt="select_account")
-    return 'Please go to <a href=%s>here</a> and authorize access.' % authorization_url
+    return 'Please go <a href=%s>here</a> and authorize access.' % authorization_url
 
 # This is where users will be redirected back to and where you can collect
 # the JWT for use in future requests

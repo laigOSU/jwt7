@@ -15,18 +15,6 @@ client = datastore.Client()
 
 bp = Blueprint('boat', __name__, url_prefix='/boats')
 
-@bp.route('/boatverify', methods=['POST','GET'])
-def boats_verify(auth_token):
-    #---- POST: CREATE A NEW BOAT ----#
-    if request.method == 'POST':
-        try:
-            payload = jwt.decode(auth_token, app.config.get('SECRET_KEY'))
-            return payload['sub']
-        except jwt.ExpiredSignatureError:
-            return 'Signature expired. Please log in again.'
-        except jwt.InvalidTokenError:
-            return 'Invalid token. Please log in again.'
-
 @bp.route('', methods=['POST','GET'])
 def boats_get_post():
     #---- POST: CREATE A NEW BOAT ----#
@@ -37,17 +25,35 @@ def boats_get_post():
             return("Missing/Invalid JWT", 401)
         else:
             print("yes params")
+            # Get the JWT info
             req = requests.Request()
             id_info = id_token.verify_oauth2_token(
             request.args['jwt'], req, constants.client_id)
             print("req is: ", req)
-            print("id_info[email] is: ", id_info['email'])
+            print("User's email is: id_info[email] = ", id_info['email'])
             # payload = jwt.decode(encoded, client_secret, algorithms='HS256')
             # print("jwt is: ", payload)
+
+            # Make a new boat
             content = request.get_json()
             new_boat = datastore.entity.Entity(key=client.key(constants.boats))
             new_boat.update({"name": content["name"], 'type': content['type'], 'length': content['length'], 'owner': id_info['email']})
             client.put(new_boat)
+
+            # Check if user['email'] already exists
+            query = client.query(kind=constants.users)
+            query.add_filter('email', '=', id_info['email'])
+            queryresults = list(query.fetch())
+            if (queryresults):
+                print("Email exists in user DB")
+            else:
+                print("Email does not yet exist in user DB")
+                new_user = datastore.entity.Entity(key=client.key(constants.users))
+                new_user.update({"email": id_info['email']})
+                client.put(new_user)
+
+            # If user doesn't already exist, create new user entity
+
             return (str(new_boat.key.id), 201)
             # return repr(id_info) + "<br><br> the user is: " + id_info['email']
 
