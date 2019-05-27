@@ -3,6 +3,13 @@ from google.cloud import datastore
 import json
 import constants
 
+from requests_oauthlib import OAuth2Session
+from google.oauth2 import id_token
+from google.auth import crypt
+from google.auth import jwt
+from google.auth.transport import requests
+import jwt
+
 client = datastore.Client()
 
 bp = Blueprint('user', __name__, url_prefix='/users')
@@ -19,105 +26,34 @@ def users_get_post():
         e["user_url"] =url
     return json.dumps(results)
 
-@bp.route('/<id>', methods=['PUT','DELETE','GET'])
-def slips_put_delete(id):
-    #---- PUT: MODIFY A SPECIFIC SLIP ----#
-    if request.method == 'PUT':
-        # Get the input
-        content = request.get_json()
-
-        # Get the slip
-        slip_key = client.key(constants.slips, int(id))
-        my_slip = client.get(key=slip_key)
-        print("my_slip[current_boat] is: ", my_slip["current_boat"])
-
-        print("my_slip is: ", my_slip)
-        print("my_slip.keys() is: ", my_slip.keys())
-        # print("my_slip.keys()[current_boat] is", my_slip.keys()[current_boat])
-
-        # Trying to assign a boat to an occupied slip produces a 403 error
-        if content["current_boat"] != "null" and my_slip["current_boat"] != "null":
-            return ('This slip is already occupied',403)
-        else:
-            my_slip.update({"number": content["number"], "current_boat": content["current_boat"],
-              "arrival_date": content["arrival_date"]})
-            client.put(my_slip)
-            return('Modification entered',200)
-
-    #---- DELETE: REMOVE A SPECIFIC SLIP ----#
-    elif request.method == 'DELETE':
-        key = client.key(constants.slips, int(id))
-        client.delete(key)
-        return ('',200)
-
-    #---- GET: VIEW A SPECIFIC SLIP ----#
-    elif request.method == 'GET':
-        # Get the specific slip
-        query = client.query(kind=constants.slips)
-        first_key = client.key(constants.slips,int(id))
-        query.key_filter(first_key,'=')
-        results = list(query.fetch())
-
-        for e in results:
-            e["id"] = id
-            # url = "http://localhost:8080/slips/" + id
-            url = constants.appspot_url + constants.slips + "/" + id
-            e["slip_url"] = url
-
-            #If slip has a boat, get the boat id too
-            my_slip = client.get(key=first_key)
-            if my_slip["current_boat"] != "null":
-                boat_id = my_slip["current_boat"]
-                # boaturl = "http://localhost:8080/boats/" + boat_id
-                boaturl = constants.appspot_url + constants.boats + "/" + boat_id
-                e["boat_url"] =  boaturl
-        return json.dumps(results)
-
+@bp.route('/<uid>/boats', methods=['GET'])
+def get_users_boats(uid):
+    # Check JWT params
+    jwt_param = request.args.get("jwt")
+    if jwt_param is None:
+        print("no params")
+        return("Missing/Invalid JWT", 401)
     else:
-        return 'Method not recogonized'
+        print("yes params")
 
-@bp.route('/<sid>/boats/<bid>', methods=['PUT','DELETE'])
-def add_delete_docking(sid,bid):
-    #---- PUT: DOCK A SPECIFIC BOAT TO A SPECIFIC SLIP ----#
-    if request.method == 'PUT':
-        content = request.get_json()
-        slip_key = client.key(constants.slips, int(sid))
-        slip = client.get(key=slip_key)
-        boat_key = client.key(constants.boats, int(bid))
-        boat = client.get(key=boat_key)
+        # Get the JWT info
+        req = requests.Request()
+        id_info = id_token.verify_oauth2_token(
+        request.args['jwt'], req, constants.client_id)
+        print("req is: ", req)
+        print("User's email is: id_info[email] = ", id_info['email'])
+        jwt_email = id_info['email']
+        print("jwt_email is: ", jwt_email)
 
-        # Trying to assign a boat to an occupied slip produces a 403 error
-        print("slip[current_boat]: ", slip["current_boat"])
-        if slip["current_boat"] != "null":
-            return ('This slip is already occupied',403)
+        # Get the DB info on user of that user id (uid)
+        user_key = client.key(constants.users, int(uid))
+        my_user = client.get(key=user_key)
+        db_email = my_user['email']
+        print("db_email is: ", db_email)
+
+        # Compare JWT email vs DB email matches
+        if (db_email == jwt_email):
+            print("Emails match, correct user")
+            return("emails match, user is correct", 200)
         else:
-            slip.update({"number": content["number"], "current_boat": content["current_boat"],
-              "arrival_date": content["arrival_date"]})
-            client.put(slip)
-            return('Boat added to slip',200)
-
-    #---- DELETE: REMOVE A SPECIFIC BOAT FROM A SPECIFIC SLIP ----#
-    if request.method == 'DELETE':
-        slip_key = client.key(constants.slips, int(sid))
-        slip = client.get(key=slip_key)
-        print("slip[current_boat]: ", slip["current_boat"])
-        slip["current_boat"] = "null"
-        slip["arrival_date"] = "null"
-        client.put(slip)
-        # if 'boats' in slip.keys():
-        #     slip['boats'].remove(int(bid))
-        #     client.put(slip)
-        return('',200)
-
-# @bp.route('/<id>/boats', methods=['GET'])
-# def get_reservations(id):
-#     slip_key = client.key(constants.slips, int(id))
-#     slip = client.get(key=slip_key)
-#     boat_list  = []
-#     if 'boats' in slip.keys():
-#         for bid in slip['boats']:
-#             boat_key = client.key(constants.boats, int(bid))
-#             boat_list.append(boat_key)
-#         return json.dumps(client.get_multi(boat_list))
-#     else:
-#         return json.dumps([])
+            return("Not authorized to view boats of another user", 403)
