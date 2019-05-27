@@ -127,7 +127,7 @@ def boats_put_delete_get(id):
                     slip["current_boat"] = "null"
                     slip["arrival_date"] = "null"
                     client.put(slip)
-                # client.delete(boat_key)
+                client.delete(boat_key)
 
                 return ('Okay deleting',200)
             else:
